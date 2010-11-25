@@ -1,22 +1,11 @@
 /*
- *  Copyright (C) 2010 Tamás Laiszner <laisznertamas@gmail.com>
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This source code is placed in the public domain. This means you can use it
+ * without any restrictions.
  */
 
 package org.megatherion.util.collections;
 
+import java.util.AbstractList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -24,123 +13,82 @@ import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.io.Serializable;
 
-public class UnrolledLinkedList<E> implements List<E>, Serializable {
+/**
+ * An unrolled linked list implemetation of the
+ * {@link java.util.List List} interface.
+ *
+ * @author Tamás Laiszner <laisznertamas@gmail.com>
+ * @param <E> the type of elements held in this collection
+ */
 
-    private static final long serialVersionUID = -674052309103045211L;
+public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, Serializable {
 
-    private class Node {
+    /**
+     * The maximum number of elements that can be stored in a single node.
+     */
+    private int nodeCapacity;
 
-        Node next;
-
-        Node previous;
-
-        int numElements = 0;
-
-        Object[] elements;
-
-        Node() {
-
-            elements = new Object[threshold];
-
-        }
-
-        void removeElement(int ptr) {
-
-            numElements--;
-            for (int i = ptr; i < numElements; i++) {
-                elements[i] = elements[i + 1];
-            }
-            elements[numElements] = null;
-            if (next != null && next.numElements + numElements <= threshold) {
-                merge(next);
-            } else if (previous != null && previous.numElements + numElements <= threshold) {
-                previous.merge(this);
-            }
-            size--;
-
-        }
-
-        void insertElement(int ptr, E element) {
-
-            if (numElements < threshold) {
-                for (int i = ptr; i < numElements; i++) {
-                    elements[i + 1] = elements[i];
-                }
-                elements[ptr] = element;
-                numElements++;
-            } else {
-                Node newNode = new Node();
-                newNode.next = next;
-                newNode.previous = this;
-                next = newNode;
-                int elementsToMove = threshold / 2;
-                int startIndex = threshold - elementsToMove;
-                int i;
-                for (i = 0; i < elementsToMove; i++) {
-                    newNode.elements[i] = elements[startIndex + i];
-                    elements[startIndex + i] = null;
-                }
-                newNode.elements[i] = element;
-                numElements -= elementsToMove;
-                newNode.numElements = elementsToMove + 1;
-                if (this == lastNode) {
-                    lastNode = newNode;
-                }
-        }
-        size++;
-
-        }
-
-        void merge(Node node) {
-
-            for (int i = 0; i < node.numElements; i++) {
-                elements[numElements + i] = node.elements[i];
-                node.elements[i] = null;
-            }
-            numElements += node.numElements;
-            next = node.next;
-            if (node.next != null) {
-                node.next.previous = this;
-            } else {
-                lastNode = this;
-            }
-
-        }
-
-    }
-
-    private int threshold;
-
+    /**
+     * The current size of this list.
+     */
     private int size = 0;
 
+    /**
+     * The first node of this list.
+     */
     private Node firstNode;
 
+    /**
+     * The last node of this list.
+     */
     private Node lastNode;
 
-    public UnrolledLinkedList(int threshold) {
+    /**
+     * Constructs an empty list with the specified
+     * {@link UnrolledLinkedList#nodeCapacity nodeCapacity}. For performance
+     * reasons <tt>nodeCapacity</tt> must be greater than or equal to 8.
+     *
+     * @param nodeCapacity The maximum number of elements
+     *        that can be stored in a single node.
+     * @throws IllegalArgumentException if <tt>nodeCapacity</tt> is less than 8
+     */
+    public UnrolledLinkedList(int nodeCapacity) throws IllegalArgumentException {
 
-        if (threshold < 8) {
-            throw new IllegalArgumentException();
+        if (nodeCapacity < 8) {
+            throw new IllegalArgumentException("nodeCapacity < 8");
         }
-        this.threshold = threshold;
+        this.nodeCapacity = nodeCapacity;
         firstNode = new Node();
         lastNode = firstNode;
 
     }
 
+    /**
+     * Constructs an empty list with
+     * {@link UnrolledLinkedList#nodeCapacity nodeCapacity} of 16.
+     */
     public UnrolledLinkedList() {
 
         this(16);
 
     }
 
-    @Override
+    /**
+     * Returns the number of elements in this list.
+     *
+     * @return the number of elements in this list
+     */
     public int size() {
 
         return size;
 
     }
 
+    /**
+     * Returns <tt>true</tt> if this list contains no elements.
+     *
+     * @return <tt>true</tt> if this list contains no elements
+     */
     @Override
     public boolean isEmpty() {
 
@@ -148,6 +96,15 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Returns <tt>true</tt> if this list contains the specified element.
+     * More formally, returns <tt>true</tt> if and only if this list contains
+     * at least one element <tt>e</tt> such that
+     * <tt>(o==null&nbsp;?&nbsp;e==null&nbsp;:&nbsp;o.equals(e))</tt>.
+     *
+     * @param o element whose presence in this list is to be tested
+     * @return <tt>true</tt> if this list contains the specified element
+     */
     @Override
     public boolean contains(Object o) {
 
@@ -162,6 +119,20 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Returns an array containing all of the elements in this list
+     * in proper sequence (from first to last element).
+     *
+     * <p>The returned array will be "safe" in that no references to it are
+     * maintained by this list.  (In other words, this method must allocate
+     * a new array).  The caller is thus free to modify the returned array.
+     *
+     * <p>This method acts as bridge between array-based and collection-based
+     * APIs.
+     *
+     * @return an array containing all of the elements in this list
+     *         in proper sequence
+     */
     @Override
     public Object[] toArray() {
 
@@ -177,6 +148,20 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Returns an array containing all of the elements in this list
+     * in proper sequence (from first to last element).
+     *
+     * <p>The returned array will be "safe" in that no references to it are
+     * maintained by this list.  (In other words, this method must allocate
+     * a new array).  The caller is thus free to modify the returned array.
+     *
+     * <p>This method acts as bridge between array-based and collection-based
+     * APIs.
+     *
+     * @return an array containing all of the elements in this list
+     *         in proper sequence
+     */
     @Override
     public <T> T[] toArray(T[] a) {
 
@@ -196,14 +181,33 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Appends the specified element to the end of this list.
+     *
+     * @param e element to be appended to this list
+     * @return <tt>true</tt> (as specified by {@link Collection#add})
+     */
     @Override
     public boolean add(E e) {
 
-        lastNode.insertElement(lastNode.numElements, e);
+        insertIntoNode(lastNode, lastNode.numElements, e);
         return true;
 
     }
 
+    /**
+     * Removes the first occurrence of the specified element from this list,
+     * if it is present.  If this list does not contain the element, it is
+     * unchanged.  More formally, removes the element with the lowest index
+     * <tt>i</tt> such that
+     * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>
+     * (if such an element exists).  Returns <tt>true</tt> if this list
+     * contained the specified element (or equivalently, if this list
+     * changed as a result of the call).
+     *
+     * @param o element to be removed from this list, if present
+     * @return <tt>true</tt> if this list contained the specified element
+     */
     @Override
     public boolean remove(Object o) {
 
@@ -213,7 +217,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
             while (node != null) {
                 for (int ptr = 0; ptr < node.numElements; ptr++) {
                     if (node.elements[ptr] == null) {
-                        node.removeElement(ptr);
+                        removeFromNode(node, ptr);
                         return true;
                     }
                 }
@@ -224,7 +228,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
             while (node != null) {
                 for (int ptr = 0; ptr < node.numElements; ptr++) {
                     if (o.equals(node.elements[ptr])) {
-                        node.removeElement(ptr);
+                        removeFromNode(node, ptr);
                         return true;
                     }
                 }
@@ -236,6 +240,16 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Returns <tt>true</tt> if this list contains all of the elements of the
+     * specified collection.
+     *
+     * @param  c collection to be checked for containment in this list
+     * @return <tt>true</tt> if this list contains all of the elements of the
+     *         specified collection
+     * @throws NullPointerException if the specified collection is null
+     * @see #contains(Object)
+     */
     @Override
     public boolean containsAll(Collection<?> c) {
 
@@ -252,6 +266,19 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Appends all of the elements in the specified collection to the end of
+     * this list, in the order that they are returned by the specified
+     * collection's iterator.  The behavior of this
+     * operation is undefined if the specified collection is modified while
+     * the operation is in progress.  (Note that this will occur if the
+     * specified collection is this list, and it's nonempty.)
+     *
+     * @param c collection containing elements to be added to this list
+     * @return <tt>true</tt> if this list changed as a result of the call
+     * @throws NullPointerException if the specified collection is null
+     * @see #add(Object)
+     */
     @Override
     public boolean addAll(Collection<? extends E> c) {
 
@@ -271,8 +298,11 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
     @Override
     public boolean addAll(int index, Collection<? extends E> c) {
 
-        if (c == null) {
+        /*if (c == null) {
             throw new NullPointerException();
+        }
+        if (index < 0 || index > size) {
+            throw new IndexOutOfBoundsException();
         }
         Node node;
         int p = 0;
@@ -289,11 +319,26 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
                 node = node.previous;
             }
         }
-
+        Iterator<? extends E> it = c.iterator();
+        while (it.hasNext()) {
+            
+        }*/
+        throw new UnsupportedOperationException("Operation not supported yet.");
 
     }
 
+    /**
+     * Removes from this list all of its elements that are contained in the
+     * specified collection.
+     *
+     * @param c collection containing elements to be removed from this list
+     * @return <tt>true</tt> if this list changed as a result of the call
+     * @throws NullPointerException if the specified collection is null
+     * @see #remove(Object)
+     * @see #contains(Object)
+     */
     @Override
+    @SuppressWarnings("element-type-mismatch")
     public boolean removeAll(Collection<?> c) {
 
         if (c == null) {
@@ -310,6 +355,18 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Retains only the elements in this list that are contained in the
+     * specified collection.  In other words, removes
+     * from this list all the elements that are not contained in the specified
+     * collection.
+     *
+     * @param c collection containing elements to be retained in this list
+     * @return <tt>true</tt> if this list changed as a result of the call
+     * @throws NullPointerException if the specified collection is null
+     * @see #remove(Object)
+     * @see #contains(Object)
+     */
     @Override
     public boolean retainAll(Collection<?> c) {
 
@@ -320,7 +377,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
         for (Node node = firstNode; node != null; node = node.next) {
             for (int i = 0; i < node.numElements; i++) {
                 if (!c.contains(node.elements[i])) {
-                    node.removeElement(i);
+                    removeFromNode(node, i);
                     i--;
                     changed = true;
                 }
@@ -330,9 +387,12 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Removes all of the elements from this list.
+     */
     @Override
     public void clear() {
-
+        // TODO!!!
         Node node = firstNode;
         while (node != null) {
             Node next = node.next;
@@ -344,10 +404,18 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
-    @Override
+    /**
+     * Returns the element at the specified position in this list.
+     *
+     * @param index index of the element to return
+     * @return the element at the specified position in this list
+     * @throws IndexOutOfBoundsException {@inheritDoc}
+     */
     public E get(int index) throws IndexOutOfBoundsException {
 
-        indexCheck(index);
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
         E element = null;
         Node node;
         int p = 0;
@@ -368,10 +436,21 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Replaces the element at the specified position in this list with the
+     * specified element.
+     *
+     * @param index index of the element to replace
+     * @param element element to be stored at the specified position
+     * @return the element previously at the specified position
+     * @throws IndexOutOfBoundsException {@inheritDoc}
+     */
     @Override
     public E set(int index, E element) {
 
-        indexCheck(index);
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
         E el = null;
         Node node;
         int p = 0;
@@ -394,10 +473,21 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Inserts the specified element at the specified position in this list.
+     * Shifts the element currently at that position (if any) and any
+     * subsequent elements to the right (adds one to their indices).
+     *
+     * @param index index at which the specified element is to be inserted
+     * @param element element to be inserted
+     * @throws IndexOutOfBoundsException {@inheritDoc}
+     */
     @Override
     public void add(int index, E element) throws IndexOutOfBoundsException {
 
-        indexCheck(index);
+        if (index < 0 || index > size) {
+            throw new IndexOutOfBoundsException();
+        }
         Node node;
         int p = 0;
         if (size - index > index) {
@@ -413,14 +503,25 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
                 node = node.previous;
             }
         }
-        node.insertElement(index - p, element);
+        insertIntoNode(node, index - p, element);
 
     }
 
+    /**
+     * Removes the element at the specified position in this list.  Shifts any
+     * subsequent elements to the left (subtracts one from their indices).
+     * Returns the element that was removed from the list.
+     *
+     * @param index the index of the element to be removed
+     * @return the element previously at the specified position
+     * @throws IndexOutOfBoundsException {@inheritDoc}
+     */
     @Override
     public E remove(int index) throws IndexOutOfBoundsException {
 
-        indexCheck(index);
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
         E element = null;
         Node node;
         int p = 0;
@@ -438,11 +539,22 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
             }
         }
         element = (E) node.elements[index - p];
-        node.removeElement(index - p);
+        removeFromNode(node, index - p);
         return element;
 
     }
 
+    /**
+     * Returns the index of the first occurrence of the specified element
+     * in this list, or -1 if this list does not contain the element.
+     * More formally, returns the lowest index <tt>i</tt> such that
+     * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>,
+     * or -1 if there is no such index.
+     *
+     * @param o element to search for
+     * @return the index of the first occurrence of the specified element in
+     *         this list, or -1 if this list does not contain the element
+     */
     @Override
     public int indexOf(Object o) {
 
@@ -473,6 +585,17 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
+    /**
+     * Returns the index of the last occurrence of the specified element
+     * in this list, or -1 if this list does not contain the element.
+     * More formally, returns the highest index <tt>i</tt> such that
+     * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>,
+     * or -1 if there is no such index.
+     *
+     * @param o element to search for
+     * @return the index of the last occurrence of the specified element in
+     *         this list, or -1 if this list does not contain the element
+     */
     @Override
     public int lastIndexOf(Object o) {
 
@@ -483,7 +606,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
                 index -= node.numElements;
                 for (int i = node.numElements - 1; i >= 0; i--) {
                     if (node.elements[i] == null) {
-                        return index + i;
+                        return (index + i);
                     }
                 }
                 node = node.previous;
@@ -493,7 +616,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
                 index -= node.numElements;
                 for (int i = node.numElements - 1; i >= 0; i--) {
                     if (o.equals(node.elements[i])) {
-                        return index + i;
+                        return (index + i);
                     }
                 }
                 node = node.previous;
@@ -535,15 +658,34 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
 
     }
 
-    @Override
-    public List<E> subList(int fromIndex, int toIndex) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    private static final long serialVersionUID = -674052309103045211L;
 
-    private void indexCheck(int index) throws IndexOutOfBoundsException {
+    private class Node {
 
-        if (index < 0 || index >= size) {
-            throw new IndexOutOfBoundsException("Index out of bounds: " + index);
+        /**
+         * The next node.
+         */
+        Node next;
+
+        /**
+         * The previous node.
+         */
+        Node previous;
+
+        /**
+         * The number of elements stored in this node.
+         */
+        int numElements = 0;
+
+        /**
+         * The array in which the elements are stored.
+         */
+        Object[] elements;
+
+        Node() {
+
+            elements = new Object[nodeCapacity];
+
         }
 
     }
@@ -565,7 +707,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
         @Override
         public boolean hasNext() {
 
-            return (ptr + 1 < currentNode.numElements || currentNode.next != null);
+            return (index < size - 1);
 
         }
 
@@ -573,23 +715,23 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
         public E next() {
 
             ptr++;
-            if (ptr < currentNode.numElements) {
-                index++;
-                return (E) currentNode.elements[ptr];
-            } else if (currentNode.next != null) {
-                currentNode = currentNode.next;
-                ptr = 0;
-                index++;
-                return (E) currentNode.elements[ptr];
+            if (ptr >= currentNode.numElements) {
+                if (currentNode.next != null) {
+                    currentNode = currentNode.next;
+                    ptr = 0;
+                } else {
+                    throw new NoSuchElementException();
+                }
             }
-            throw new NoSuchElementException();
+            index++;
+            return (E) currentNode.elements[ptr];
 
         }
 
         @Override
         public boolean hasPrevious() {
 
-            return (ptr - 1 >= 0 || currentNode.previous != null);
+            return (index > 0);
 
         }
 
@@ -597,16 +739,16 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
         public E previous() {
 
             ptr--;
-            if (ptr >= 0) {
-                index--;
-                return (E) currentNode.elements[ptr];
-            } else if (currentNode.next != null) {
-                currentNode = currentNode.next;
-                ptr = currentNode.numElements - 1;
-                index--;
-                return (E) currentNode.elements[ptr];
+            if (ptr < 0) {
+                if (currentNode.previous != null) {
+                    currentNode = currentNode.previous;
+                    ptr = currentNode.numElements - 1;
+                } else {
+                    throw new NoSuchElementException();
+                }
             }
-            throw new NoSuchElementException();
+            index--;
+            return (E) currentNode.elements[ptr];
 
         }
 
@@ -627,7 +769,7 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
         @Override
         public void remove() {
 
-            currentNode.removeElement(ptr);
+            removeFromNode(currentNode, ptr);
 
         }
 
@@ -641,9 +783,110 @@ public class UnrolledLinkedList<E> implements List<E>, Serializable {
         @Override
         public void add(E e) {
 
-            currentNode.insertElement(ptr + 1, e);
+            insertIntoNode(currentNode, ptr + 1, e);
 
         }
+
+    }
+
+    private void insertIntoNode(Node node, int ptr, E element) {
+
+        if (node.numElements == nodeCapacity) { // if node is full
+            Node newNode = new Node();
+            int elementsToMove = nodeCapacity / 2;
+            int startIndex = nodeCapacity - elementsToMove;
+            int i;
+            for (i = 0; i < elementsToMove; i++) {
+                newNode.elements[i] = node.elements[startIndex + i];
+                node.elements[startIndex + i] = null;
+            }
+            node.numElements -= elementsToMove;
+            newNode.numElements = elementsToMove;
+            // insert the new node into the list
+            newNode.next = node.next;
+            newNode.previous = node;
+            if (node.next != null) {
+                node.next.previous = newNode;
+            }
+            node.next = newNode;
+
+            if (node == lastNode) {
+                lastNode = newNode;
+            }
+
+            if (ptr > node.numElements) {
+                node = newNode;
+                ptr -= node.numElements;
+            }
+        }
+        for (int i = node.numElements; i > ptr; i--) {
+            node.elements[i] = node.elements[i - 1];
+        }
+        node.elements[ptr] = element;
+        node.numElements++;
+        size++;
+
+    }
+
+    private void removeFromNode(Node node, int ptr) {
+
+        node.numElements--;
+        for (int i = ptr; i < node.numElements; i++) {
+            node.elements[i] = node.elements[i + 1];
+        }
+        node.elements[node.numElements] = null;
+        if (node.next != null && node.next.numElements + node.numElements <= nodeCapacity) {
+            mergeWithNextNode(node);
+        } else if (node.previous != null && node.previous.numElements + node.numElements <= nodeCapacity) {
+            mergeWithNextNode(node.previous);
+        }
+        size--;
+
+    }
+
+    private void mergeWithNextNode(Node node) {
+
+        Node next = node.next;
+        for (int i = 0; i < next.numElements; i++) {
+            node.elements[node.numElements + i] = next.elements[i];
+            next.elements[i] = null;
+        }
+        node.numElements += next.numElements;
+        if (next.next != null) {
+            next.next.previous = node;
+        }
+        node.next = next.next.next;
+        if (next == lastNode) {
+            lastNode = node;
+        }
+
+    }
+
+    void print() {
+
+        System.out.println("SIZE: " + size);
+        for (Node n = firstNode; n != null; n = n.next) {
+            printNode(n);
+        }
+
+    }
+
+    void print2() {
+
+        System.out.println("SIZE: " + size);
+        for (Node n = lastNode; n != null; n = n.previous) {
+            printNode(n);
+        }
+
+    }
+
+    void printNode(Node n) {
+
+        System.out.print(n.numElements + " { ");
+        for (int i = 0; i < n.numElements; i++) {
+            System.out.print(n.elements[i] + " ");
+        }
+        System.out.println("}");
 
     }
 

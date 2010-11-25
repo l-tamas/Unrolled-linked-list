@@ -16,7 +16,8 @@
  */
 
 import java.util.LinkedList;
-import lepton.core.util.UnrolledLinkedList;
+
+import org.megatherion.util.collections.UnrolledLinkedList;
 
 public class ListBenchmark {
 
