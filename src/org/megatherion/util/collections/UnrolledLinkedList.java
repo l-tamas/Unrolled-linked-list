@@ -12,14 +12,46 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.io.Serializable;
+import java.util.ConcurrentModificationException;
 
 /**
  * An unrolled linked list implemetation of the
- * {@link java.util.List List} interface.
+ * {@link java.util.List List} interface. It offers better performance
+ * than the {{@link java.util.LinkedList LinkedList} class.
  *
- * @author Tamás Laiszner <laisznertamas@gmail.com>
+ * <p><strong>Note that this implementation is not synchronized.</strong>
+ * If multiple threads access a linked list concurrently, and at least
+ * one of the threads modifies the list structurally, it <i>must</i> be
+ * synchronized externally.  (A structural modification is any operation
+ * that adds or deletes one or more elements; merely setting the value of
+ * an element is not a structural modification.)  This is typically
+ * accomplished by synchronizing on some object that naturally
+ * encapsulates the list.
+ *
+ * If no such object exists, the list should be "wrapped" using the
+ * {@link java.util.Collections#synchronizedList Collections.synchronizedList}
+ * method.  This is best done at creation time, to prevent accidental
+ * unsynchronized access to the list:<pre>
+ *   List list = Collections.synchronizedList(new LinkedList(...));</pre>
+ *
+ * <p>The iterators returned by this class's <tt>iterator</tt> and
+ * <tt>listIterator</tt> methods are <i>fail-fast</i>: if the list is
+ * structurally modified at any time after the iterator is created, in
+ * any way except through the Iterator's own <tt>remove</tt> or
+ * <tt>add</tt> methods, the iterator will throw a {@link
+ * ConcurrentModificationException}.  Thus, in the face of concurrent
+ * modification, the iterator fails quickly and cleanly, rather than
+ * risking arbitrary, non-deterministic behavior at an undetermined
+ * time in the future.
+ *
  * @param <E> the type of elements held in this collection
+ * @see <a href="http://en.wikipedia.org/wiki/Unrolled_linked_list">Unrolled_linked_list</a>
  */
+
+// TODO: Implement the java.util.List.addAll(int index, Collection<? extends E> c)
+//       method in a more efficient way. The current implementation is inherited
+//       from the java.util.AbstractList class.
+// TODO: Testing
 
 public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, Serializable {
 
@@ -112,6 +144,11 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
 
     }
 
+    /**
+     * Returns an iterator over the elements in this list in proper sequence.
+     *
+     * @return an iterator over the elements in this list in proper sequence
+     */
     @Override
     public Iterator<E> iterator() {
 
@@ -295,38 +332,6 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
 
     }
 
-    @Override
-    public boolean addAll(int index, Collection<? extends E> c) {
-
-        /*if (c == null) {
-            throw new NullPointerException();
-        }
-        if (index < 0 || index > size) {
-            throw new IndexOutOfBoundsException();
-        }
-        Node node;
-        int p = 0;
-        if (size - index > index) {
-            node = firstNode;
-            while (p <= index - node.numElements) {
-                p += node.numElements;
-                node = node.next;
-            }
-        } else {
-            node = lastNode;
-            p = size;
-            while ((p -= node.numElements) > index) {
-                node = node.previous;
-            }
-        }
-        Iterator<? extends E> it = c.iterator();
-        while (it.hasNext()) {
-            
-        }*/
-        throw new UnsupportedOperationException("Operation not supported yet.");
-
-    }
-
     /**
      * Removes from this list all of its elements that are contained in the
      * specified collection.
@@ -338,7 +343,6 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
      * @see #contains(Object)
      */
     @Override
-    @SuppressWarnings("element-type-mismatch")
     public boolean removeAll(Collection<?> c) {
 
         if (c == null) {
@@ -392,8 +396,8 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
      */
     @Override
     public void clear() {
-        // TODO!!!
-        Node node = firstNode;
+
+        Node node = firstNode.next;
         while (node != null) {
             Node next = node.next;
             node.next = null;
@@ -401,6 +405,13 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
             node.elements = null;
             node = next;
         }
+        lastNode = firstNode;
+        for (int ptr = 0; ptr < firstNode.numElements; ptr++) {
+            firstNode.elements[ptr] = null;
+        }
+        firstNode.numElements = 0;
+        firstNode.next = null;
+        size = 0;
 
     }
 
@@ -416,7 +427,6 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         if (index < 0 || index >= size) {
             throw new IndexOutOfBoundsException();
         }
-        E element = null;
         Node node;
         int p = 0;
         if (size - index > index) {
@@ -626,6 +636,13 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
 
     }
 
+    /**
+     * Returns a list iterator over the elements in this list (in proper
+     * sequence).
+     *
+     * @return a list iterator over the elements in this list (in proper
+     *         sequence)
+     */
     @Override
     public ListIterator<E> listIterator() {
 
@@ -633,6 +650,27 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
 
     }
 
+    /**
+     * Returns a list-iterator of the elements in this list (in proper
+     * sequence), starting at the specified position in the list.
+     * Obeys the general contract of <tt>List.listIterator(int)</tt>.<p>
+     *
+     * The list-iterator is <i>fail-fast</i>: if the list is structurally
+     * modified at any time after the Iterator is created, in any way except
+     * through the list-iterator's own <tt>remove</tt> or <tt>add</tt>
+     * methods, the list-iterator will throw a
+     * <tt>ConcurrentModificationException</tt>.  Thus, in the face of
+     * concurrent modification, the iterator fails quickly and cleanly, rather
+     * than risking arbitrary, non-deterministic behavior at an undetermined
+     * time in the future.
+     *
+     * @param index index of the first element to be returned from the
+     *              list-iterator (by a call to <tt>next</tt>)
+     * @return a ListIterator of the elements in this list (in proper
+     *         sequence), starting at the specified position in the list
+     * @throws IndexOutOfBoundsException {@inheritDoc}
+     * @see List#listIterator(int)
+     */
     @Override
     public ListIterator<E> listIterator(int index) {
 
@@ -682,6 +720,9 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
          */
         Object[] elements;
 
+        /**
+         * Constructs a new node.
+         */
         Node() {
 
             elements = new Object[nodeCapacity];
@@ -695,6 +736,8 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         Node currentNode;
         int ptr;
         int index;
+
+        private int expectedModCount = modCount;
 
         ULLIterator(Node node, int ptr, int index) {
 
@@ -724,6 +767,7 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
                 }
             }
             index++;
+            checkForModification();
             return (E) currentNode.elements[ptr];
 
         }
@@ -748,6 +792,7 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
                 }
             }
             index--;
+            checkForModification();
             return (E) currentNode.elements[ptr];
 
         }
@@ -769,6 +814,7 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         @Override
         public void remove() {
 
+            checkForModification();
             removeFromNode(currentNode, ptr);
 
         }
@@ -776,6 +822,7 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         @Override
         public void set(E e) {
 
+            checkForModification();
             currentNode.elements[ptr] = e;
 
         }
@@ -783,16 +830,38 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         @Override
         public void add(E e) {
 
+            checkForModification();
             insertIntoNode(currentNode, ptr + 1, e);
+
+        }
+
+        private void checkForModification() {
+
+            if (modCount != expectedModCount) {
+                throw new ConcurrentModificationException();
+            }
 
         }
 
     }
 
+    /**
+     * Insert an element into the specified node. If the node is already full,
+     * a new node will be created and inserted into the list after
+     * the specified node.
+     *
+     * @param node
+     * @param ptr the position at which the element should be inserted
+     *            into the <tt>node.elements<tt> array
+     * @param element the element to be inserted
+     */
     private void insertIntoNode(Node node, int ptr, E element) {
 
-        if (node.numElements == nodeCapacity) { // if node is full
+        // if the node is full
+        if (node.numElements == nodeCapacity) {
+            // create a new node
             Node newNode = new Node();
+            // move half of the elements to the new node
             int elementsToMove = nodeCapacity / 2;
             int startIndex = nodeCapacity - elementsToMove;
             int i;
@@ -814,6 +883,8 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
                 lastNode = newNode;
             }
 
+            // check whether the element should be inserted into
+            // the original node or into the new node
             if (ptr > node.numElements) {
                 node = newNode;
                 ptr -= node.numElements;
@@ -825,9 +896,17 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         node.elements[ptr] = element;
         node.numElements++;
         size++;
+        modCount++;
 
     }
 
+    /**
+     * Removes an element from the specified node.
+     *
+     * @param node the node from which an element should be removed
+     * @param ptr the index of the element to be removed within
+     * the <tt>node.elements<tt> array
+     */
     private void removeFromNode(Node node, int ptr) {
 
         node.numElements--;
@@ -841,9 +920,15 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
             mergeWithNextNode(node.previous);
         }
         size--;
+        modCount++;
 
     }
 
+    /**
+     * This method does merge the specified node with the next node.
+     *
+     * @param node the node which should be merged with the next node
+     */
     private void mergeWithNextNode(Node node) {
 
         Node next = node.next;
@@ -862,6 +947,8 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
 
     }
 
+    /*
+    // DEBUG
     void print() {
 
         System.out.println("SIZE: " + size);
@@ -889,5 +976,6 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         System.out.println("}");
 
     }
+    */
 
 }
