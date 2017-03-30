@@ -940,7 +940,7 @@ public class UnrolledLinkedList<E> extends AbstractList<E> implements List<E>, S
         if (next.next != null) {
             next.next.previous = node;
         }
-        node.next = next.next.next;
+        node.next = next.next;
         if (next == lastNode) {
             lastNode = node;
         }
